@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "INIReader.h"
 #include <filesystem>
+#include <objbase.h>
 #include "resource.h"
 
 INIReader reader("config.ini");
@@ -26,6 +27,10 @@ HANDLE MainMain::mainTHread;
 
 MainMain::MainMain(std::function<void()> pPostMutexFunc)
 {
+	// Initialize COM on this worker thread before any COM-dependent calls (DirectInput, etc.)
+	// Safe here because we're in a CreateThread callback, NOT in DllMain (no loader lock)
+	CoInitializeEx(NULL, COINIT_MULTITHREADED);
+
 	std::filesystem::path BfilePath("Base.wz"); std::filesystem::path BfilePath2("Data/zmap.img"); std::filesystem::path filePath("config.ini"); //check if needed stuff exists
 	if (std::filesystem::exists(filePath) && reader.ParseError()) { Sleep(20); SuspendThread(MainMain::mainTHread); MessageBox(NULL, L"your config.ini file cannot be properly read, go to troubleshooting section of Ezorsia v2 setup guide at https://github.com/444Ro666/MapleEzorsia-v2 for more details, or delete your config.ini to have a new one generated with default settings", L"bad config file", 0); ExitProcess(0); }
 	else if (!std::filesystem::exists(filePath)) {
@@ -110,7 +115,7 @@ MainMain::MainMain(std::function<void()> pPostMutexFunc)
 	MainMain::ownCashShopFrame = reader.GetBoolean("optional", "ownCashShopFrame", false);
 	MainMain::useV62_ExpTable = reader.GetBoolean("optional", "useV62_ExpTable", false);
 	const char* serverIP_Address = Client::ServerIP_AddressFromINI.c_str();
-	MainMain::m_sRedirectIP = serverIP_Address; unsigned int sleepySleepy = reader.GetInteger("debug", "sleepTime", 0);
+	MainMain::m_sRedirectIP = serverIP_Address; unsigned int sleepySleepy = reader.GetInteger("debug", "sleepTime", 30);
 	std::string use_custom_dll_1s = reader.Get("optional", "use_custom_dll_1", "CUSTOM.dll");
 	std::string use_custom_dll_2s = reader.Get("optional", "use_custom_dll_2", "CUSTOM2.dll");
 	std::string use_custom_dll_3s = reader.Get("optional", "use_custom_dll_3", "CUSTOM3.dll");
@@ -145,6 +150,7 @@ MainMain::~MainMain()
 		MainMain::m_ProcTable.lpWSPCloseSocket(m_GameSock, nullptr);
 		MainMain::m_GameSock = INVALID_SOCKET;
 	}
+	CoUninitialize();
 }
 //old config stuff:
 	//;Should VirtuProtect be enabled ? (true / false, default true) (this is necessary for clients without CRC bypass such as hendi's clients

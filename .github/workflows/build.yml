@@ -1,0 +1,30 @@
+name: Build dinput8.dll
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        config: [Release]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build ${{ matrix.config }}
+        run: msbuild "Ezorsia V2.sln" /p:Configuration=${{ matrix.config }} /p:Platform=Win32 /m
+
+      - name: Upload dinput8.dll
+        uses: actions/upload-artifact@v4
+        with:
+          name: dinput8-${{ matrix.config }}
+          path: out/${{ matrix.config }}/dinput8.dll
+          if-no-files-found: error
